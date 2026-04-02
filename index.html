@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mood UI Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link id="googleFontLink" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --app-bg: #0b1020;
+      --panel: rgba(255,255,255,0.08);
+      --panel-strong: rgba(255,255,255,0.12);
+      --text: #eef2ff;
+      --muted: #b5bfdc;
+      --line: rgba(255,255,255,0.14);
+      --accent: #8b5cf6;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --ui-radius: 24px;
+      --ui-font: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --surface-1: radial-gradient(circle at top, rgba(139,92,246,0.22), transparent 45%), linear-gradient(180deg, #0e152e 0%, #070b17 100%);
+      --device-width: 390px;
+      --device-height: 844px;
+      --editor-bg: rgba(255,255,255,0.05);
+      --preview-grid: rgba(255,255,255,0.06);
+    }
+
+    body.light-app {
+      --app-bg: #edf1ff;
+      --panel: rgba(255,255,255,0.72);
+      --panel-strong: rgba(255,255,255,0.92);
+      --text: #172033;
+      --muted: #5f6880;
+      --line: rgba(17,24,39,0.09);
+      --accent: #6d28d9;
+      --shadow: 0 16px 45px rgba(81, 92, 123, 0.15);
+      --surface-1: radial-gradient(circle at top, rgba(125, 92, 255, 0.18), transparent 40%), linear-gradient(180deg, #f8faff 0%, #eaf0ff 100%);
+      --editor-bg: rgba(17,24,39,0.03);
+      --preview-grid: rgba(17,24,39,0.06);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: var(--ui-font);
+      color: var(--text);
+      background: var(--surface-1);
+      transition: background .35s ease, color .35s ease;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    @media (min-width: 1080px) {
+      .app {
+        grid-template-columns: 420px minmax(420px, 1fr) 360px;
+        align-items: start;
+        padding: 18px;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--ui-radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 16px 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-body {
+      padding: 16px;
+    }
+
+    h1,h2,h3,h4,p { margin: 0; }
+    h1 {
+      font-size: clamp(1.4rem, 2.4vw, 2.1rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+    h2 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .muted { color: var(--muted); }
+    .tiny { font-size: 12px; color: var(--muted); }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .chip-row, .btn-row, .segmented { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    button, select, input, textarea {
+      font: inherit;
+    }
+
+    button, .chip, .segmented label {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+
+    button:hover, .chip:hover, .segmented label:hover { transform: translateY(-1px); }
+    button.primary {
+      background: linear-gradient(135deg, rgba(139,92,246,0.95), rgba(59,130,246,0.95));
+      border-color: transparent;
+      color: white;
+    }
+    button.ghost { background: rgba(255,255,255,0.035); }
+    button.danger { background: rgba(239,68,68,0.15); }
+    button.success { background: rgba(34,197,94,0.15); }
+    button.small { padding: 8px 10px; border-radius: 12px; font-size: 13px; }
+
+    .chip.active, .segmented input:checked + span {
+      background: rgba(139,92,246,0.18);
+      border-color: rgba(139,92,246,0.48);
+      box-shadow: 0 0 0 1px rgba(139,92,246,0.18) inset;
+    }
+
+    .segmented input { display: none; }
+    .segmented label { padding: 0; overflow: hidden; }
+    .segmented label span { display: inline-block; padding: 10px 14px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .field input[type="text"],
+    .field input[type="number"],
+    .field input[type="color"],
+    .field select,
+    .field textarea,
+    .field input[type="range"] {
+      width: 100%;
+    }
+
+    .field input[type="text"], .field input[type="number"], .field select, .field textarea {
+      background: var(--editor-bg);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    textarea { resize: vertical; min-height: 92px; }
+    input[type="color"] {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: transparent;
+      min-height: 44px;
+      border-radius: 14px;
+      padding: 4px;
+    }
+    input[type="range"] { accent-color: var(--accent); }
+
+    .toolbar-sticky { position: sticky; top: 12px; }
+
+    .section {
+      padding: 14px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .preview-shell {
+      display: grid;
+      gap: 16px;
+    }
+
+    .device-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .preview-stage {
+      position: relative;
+      min-height: 70vh;
+      background-image:
+        linear-gradient(var(--preview-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--preview-grid) 1px, transparent 1px);
+      background-size: 22px 22px;
+      border-radius: 28px;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    .device-frame {
+      width: min(100%, var(--device-width));
+      min-height: var(--device-height);
+      margin: 0 auto;
+      border-radius: 34px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+      box-shadow: var(--shadow);
+      transition: width .25s ease, min-height .25s ease;
+    }
+
+    .device-notch {
+      width: 34%;
+      height: 28px;
+      border-radius: 0 0 22px 22px;
+      background: rgba(0,0,0,0.45);
+      margin: 0 auto 14px;
+    }
+
+    .device-canvas {
+      position: relative;
+      min-height: calc(var(--device-height) - 70px);
+      border-radius: 26px;
+      overflow: hidden;
+      border: 1px dashed rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.025);
+      padding: 18px;
+      display: grid;
+      place-items: center;
+    }
+
+    .preview-ui {
+      position: relative;
+      width: 280px;
+      min-height: 200px;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transition: transform .2s ease, filter .2s ease;
+      isolation: isolate;
+    }
+
+    .preview-ui.dragging { cursor: grabbing; }
+
+    .noise-overlay::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: var(--noise-opacity, 0);
+      background-image: radial-gradient(rgba(255,255,255,.12) 0.8px, transparent 1px);
+      background-size: 6px 6px;
+      mix-blend-mode: overlay;
+      z-index: 0;
+    }
+
+    .preview-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 12px;
+      min-height: 100%;
+    }
+
+    .preview-title {
+      font-size: 1.5rem;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    .preview-text {
+      opacity: .92;
+    }
+
+    .preview-input,
+    .preview-button,
+    .preview-card {
+      border: inherit;
+      border-radius: inherit;
+      font: inherit;
+    }
+
+    .preview-input {
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      color: inherit;
+      padding: 12px 14px;
+      outline: none;
+      border-style: solid;
+    }
+
+    .preview-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.14);
+      color: inherit;
+      min-height: 46px;
+      border-style: solid;
+      font-weight: 700;
+    }
+
+    .preview-card {
+      padding: 14px;
+      background: rgba(255,255,255,0.06);
+      border-style: solid;
+    }
+
+    .resize-handle {
+      position: absolute;
+      right: -8px;
+      bottom: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.2);
+      cursor: nwse-resize;
+      z-index: 3;
+    }
+
+    .code-box {
+      width: 100%;
+      min-height: 260px;
+      background: #09101f;
+      color: #d5e4ff;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .history-list, .preset-list {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .history-item, .preset-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+
+    .swatches {
+      display: flex;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      font-size: 12px;
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .stack { display: grid; gap: 8px; }
+    .hidden { display: none !important; }
+
+    .footer-note {
+      padding: 12px 16px 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel toolbar-sticky">
+      <div class="panel-header">
+        <div>
+          <div class="badge" id="langBadge">RO</div>
+          <h1 id="appTitle">Mood UI Generator</h1>
+          <p class="muted" id="appSubtitle">Cum ar arăta un UI dacă starea lui ar fi o emoție?</p>
+        </div>
+        <button class="small ghost" id="themeAppToggle">🌙 UI</button>
+      </div>
+      <div class="panel-body">
+        <div class="topbar">
+          <div class="chip-row" id="moodChips"></div>
+          <div class="btn-row">
+            <button class="small" id="langToggle">EN</button>
+            <button class="small" id="randomizeBtn">🎲</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2 id="secAppearance">Aspect</h2>
+            <div class="badge" id="contrastBadge">Contrast: --</div>
+          </div>
+          <div class="grid">
+            <div class="field">
+              <label id="labelStyleMode">Style Mode</label>
+              <select id="styleMode">
+                <option value="solid">Solid</option>
+                <option value="gradient">Gradient</option>
+              </select>
+            </div>
+            <div class="field">
+              <label id="labelGradientType">Gradient Type</label>
+              <select id="gradientType">
+                <option value="linear">Linear</option>
+                <option value="radial">Radial</option>
+                <option value="conic">Conic</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-4">
+            <div class="field"><label>C1</label><input type="color" id="color1"></div>
+            <div class="field"><label>C2</label><input type="color" id="color2"></div>
+            <div class="field"><label>C3</label><input type="color" id="color3"></div>
+            <div class="field"><label>C4</label><input type="color" id="color4"></div>
+          </div>
+
+          <div class="grid-4">
+            <div class="field"><label>Stop 1</label><input type="number" id="stop1" min="0" max="100"></div>
+            <div class="field"><label>Stop 2</label><input type="number" id="stop2" min="0" max="100"></div>
+            <div class="field"><label>Stop 3</label><input type="number" id="stop3" min="0" max="100"></div>
+            <div class="field"><label>Stop 4</label><input type="number" id="stop4" min="0" max="100"></div>
+          </div>
+
+          <div class="grid">
+            <div class="field">
+              <label>Angle / Conic</label>
+              <input type="range" id="gradientAngle" min="0" max="360">
+            </div>
+            <div class="field">
+              <label>Opacity <span id="opacityValue"></span></label>
+              <input type="range" id="opacity" min="0" max="1" step="0.01">
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="field">
+              <label>Radial X <span id="radialXValue"></span></label>
+              <input type="range" id="radialX" min="0" max="100">
+            </div>
+            <div class="field">
+              <label>Radial Y <span id="radialYValue"></span></label>
+              <input type="range" id="radialY" min="0" max="100">
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="field"><label>Backdrop Blur</label><input type="range" id="backdropBlur" min="0" max="40"></div>
+            <div class="field"><label>Glass Intensity</label><input type="range" id="glassIntensity" min="0" max="1" step="0.01"></div>
+          </div>
+          <div class="grid">
+            <div class="field"><label>Noise</label><input type="range" id="noiseOpacity" min="0" max="0.35" step="0.01"></div>
+            <div class="field">
+              <label>Background Image</label>
+              <input type="file" id="bgImageUpload" accept="image/*">
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title"><h2 id="secText">Text</h2></div>
+          <div class="field"><label id="labelTitle">Title</label><input type="text" id="titleText"></div>
+          <div class="field"><label id="labelBody">Body</label><textarea id="bodyText"></textarea></div>
+          <div class="grid">
+            <div class="field">
+              <label>Google Font</label>
+              <select id="fontFamily">
+                <option value="Inter">Inter</option>
+                <option value="Space Grotesk">Space Grotesk</option>
+                <option value="DM Sans">DM Sans</option>
+                <option value="Outfit">Outfit</option>
+                <option value="Sora">Sora</option>
+                <option value="Manrope">Manrope</option>
+                <option value="Playfair Display">Playfair Display</option>
+                <option value="Bebas Neue">Bebas Neue</option>
+                <option value="JetBrains Mono">JetBrains Mono</option>
+              </select>
+            </div>
+            <div class="field"><label>Align</label><select id="textAlign"><option>left</option><option>center</option><option>right</option></select></div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Font Size</label><input type="number" id="fontSize" min="12" max="64"></div>
+            <div class="field"><label>Weight</label><input type="number" id="fontWeight" min="100" max="900" step="100"></div>
+            <div class="field"><label>Line Height</label><input type="number" id="lineHeight" min="0.8" max="2.2" step="0.05"></div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Letter Spacing</label><input type="number" id="letterSpacing" min="-4" max="12" step="0.1"></div>
+            <div class="field"><label>Transform</label><select id="textTransform"><option>none</option><option>uppercase</option><option>lowercase</option><option>capitalize</option></select></div>
+            <div class="field"><label>Text Color</label><input type="color" id="textColor"></div>
+          </div>
+          <div class="grid-4">
+            <div class="field"><label>Text shadow X</label><input type="number" id="textShadowX" min="-50" max="50"></div>
+            <div class="field"><label>Y</label><input type="number" id="textShadowY" min="-50" max="50"></div>
+            <div class="field"><label>Blur</label><input type="number" id="textShadowBlur" min="0" max="80"></div>
+            <div class="field"><label>Opacity</label><input type="number" id="textShadowOpacity" min="0" max="1" step="0.05"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title"><h2 id="secLayout">Layout</h2></div>
+          <div class="grid-3">
+            <div class="field"><label>Width</label><input type="number" id="boxWidth" min="120" max="900"></div>
+            <div class="field"><label>Height</label><input type="number" id="boxHeight" min="120" max="900"></div>
+            <div class="field"><label>Padding</label><input type="number" id="padding" min="0" max="120"></div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Rotate</label><input type="range" id="rotate" min="-45" max="45"></div>
+            <div class="field"><label>Scale</label><input type="range" id="scale" min="0.6" max="1.8" step="0.01"></div>
+            <div class="field"><label>Blur</label><input type="range" id="blur" min="0" max="20"></div>
+          </div>
+          <div class="grid">
+            <div class="field"><label>Template</label><select id="template"><option value="card">Card</option><option value="button">Button</option><option value="input">Input</option><option value="hero">Hero</option></select></div>
+            <div class="field"><label>Playground</label><select id="layoutMode"><option value="stack">Stack</option><option value="flex">Flex</option><option value="grid">Grid</option></select></div>
+          </div>
+          <div class="grid">
+            <div class="field"><label>Justify</label><select id="justifyContent"><option>flex-start</option><option>center</option><option>space-between</option><option>space-around</option></select></div>
+            <div class="field"><label>Align Items</label><select id="alignItems"><option>stretch</option><option>flex-start</option><option>center</option><option>flex-end</option></select></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title"><h2 id="secBorders">Borders & Shadows</h2></div>
+          <div class="grid-4">
+            <div class="field"><label>Radius TL</label><input type="number" id="radiusTL" min="0" max="120"></div>
+            <div class="field"><label>TR</label><input type="number" id="radiusTR" min="0" max="120"></div>
+            <div class="field"><label>BR</label><input type="number" id="radiusBR" min="0" max="120"></div>
+            <div class="field"><label>BL</label><input type="number" id="radiusBL" min="0" max="120"></div>
+          </div>
+          <div class="grid-4">
+            <div class="field"><label>Border Top</label><input type="number" id="borderTopWidth" min="0" max="20"></div>
+            <div class="field"><label>Right</label><input type="number" id="borderRightWidth" min="0" max="20"></div>
+            <div class="field"><label>Bottom</label><input type="number" id="borderBottomWidth" min="0" max="20"></div>
+            <div class="field"><label>Left</label><input type="number" id="borderLeftWidth" min="0" max="20"></div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Border Style</label><select id="borderStyle"><option>solid</option><option>dashed</option><option>dotted</option><option>double</option></select></div>
+            <div class="field"><label>Border Color</label><input type="color" id="borderColor"></div>
+            <div class="field"><label>Inner Shadow</label><input type="range" id="innerShadow" min="0" max="60"></div>
+          </div>
+          <div class="grid-4">
+            <div class="field"><label>Shadow X</label><input type="number" id="shadowX" min="-100" max="100"></div>
+            <div class="field"><label>Y</label><input type="number" id="shadowY" min="-100" max="100"></div>
+            <div class="field"><label>Blur</label><input type="number" id="shadowBlur" min="0" max="120"></div>
+            <div class="field"><label>Spread</label><input type="number" id="shadowSpread" min="-50" max="80"></div>
+          </div>
+          <div class="grid">
+            <div class="field"><label>Shadow Opacity</label><input type="range" id="shadowOpacity" min="0" max="1" step="0.01"></div>
+            <div class="field"><label>Multiple Layers</label><textarea id="shadowLayers" placeholder="0 12px 32px rgba(0,0,0,.18), 0 2px 10px rgba(0,0,0,.12)"></textarea></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title"><h2>Animation</h2></div>
+          <div class="grid-3">
+            <div class="field"><label>Preset</label><select id="animationPreset"><option value="none">none</option><option value="pulse">pulse</option><option value="float">float</option><option value="rotate">rotate</option><option value="fade">fade</option></select></div>
+            <div class="field"><label>Hover</label><select id="hoverEffect"><option value="none">none</option><option value="lift">lift</option><option value="grow">grow</option><option value="tilt">tilt</option><option value="glow">glow</option></select></div>
+            <div class="field"><label>Transition</label><select id="transitionProp"><option value="all">all</option><option value="transform">transform</option><option value="opacity">opacity</option><option value="filter">filter</option><option value="box-shadow">box-shadow</option></select></div>
+          </div>
+          <div class="grid-3">
+            <div class="field"><label>Duration</label><input type="number" id="transitionDuration" min="0" max="10" step="0.1"></div>
+            <div class="field"><label>Easing</label><select id="transitionEasing"><option>ease</option><option>linear</option><option>ease-in</option><option>ease-out</option><option>ease-in-out</option><option>cubic-bezier(.2,.8,.2,1)</option></select></div>
+            <div class="field"><label>Delay</label><input type="number" id="transitionDelay" min="0" max="5" step="0.05"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 id="previewHeading">Live Preview</h2>
+          <p class="muted" id="previewSubheading">Drag & resize direct în preview. Responsive view inclus.</p>
+        </div>
+        <div class="btn-row">
+          <button class="small" id="undoBtn">↶ Undo</button>
+          <button class="small" id="redoBtn">↷ Redo</button>
+          <button class="small success" id="saveStateBtn">💾 Save</button>
+          <button class="small" id="loadStateBtn">Load</button>
+        </div>
+      </div>
+      <div class="panel-body preview-shell">
+        <div class="device-controls">
+          <div class="segmented">
+            <label><input type="radio" name="device" value="mobile" checked><span>Mobile</span></label>
+            <label><input type="radio" name="device" value="tablet"><span>Tablet</span></label>
+            <label><input type="radio" name="device" value="desktop"><span>Desktop</span></label>
+          </div>
+          <div class="badge" id="shareUrlBadge">URL sync on</div>
+        </div>
+
+        <div class="preview-stage" id="captureArea">
+          <div class="device-frame" id="deviceFrame">
+            <div class="device-notch" id="deviceNotch"></div>
+            <div class="device-canvas" id="deviceCanvas">
+              <div class="preview-ui noise-overlay" id="previewUI">
+                <div class="preview-content" id="previewContent">
+                  <h3 class="preview-title" id="previewTitle">Tristețea poate fi elegantă.</h3>
+                  <p class="preview-text" id="previewBody">Un UI melancolic, calm și cinematografic, cu blur moale, contrast bun și ritm lent.</p>
+                  <div class="preview-card" id="templateCard">
+                    <strong>Status</strong>
+                    <p class="tiny">Adaptive mood card with live gradients, glass and motion.</p>
+                  </div>
+                  <input class="preview-input" id="templateInput" placeholder="Preview input">
+                  <button class="preview-button" id="templateButton">Generate mood</button>
+                </div>
+                <div class="resize-handle" id="resizeHandle"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-note" id="footerNote">Exportă HTML, CSS, Tailwind-ish config, SCSS, PNG și share prin URL.</div>
+    </main>
+
+    <aside class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 id="secExport">Export & History</h2>
+          <p class="muted" id="secExportSub">Cod sincronizat cu preview-ul.</p>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <div class="section-title"><h2>Export</h2></div>
+          <div class="grid">
+            <button id="copyCssBtn">Copy CSS</button>
+            <button id="copyHtmlBtn">Copy HTML</button>
+            <button class="primary" id="copyFullHtmlBtn">Copy FULL HTML</button>
+            <button id="downloadHtmlBtn">Download .html</button>
+            <button id="exportPngBtn">Export PNG</button>
+            <button id="copyReactBtn">React</button>
+            <button id="copyInlineStyleBtn">Inline Style</button>
+            <button id="copyTailwindBtn">Tailwind</button>
+            <button id="copyScssBtn">SCSS</button>
+            <button id="copyVarsBtn">CSS Vars</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title"><h2>Mini Code Editor</h2><button class="small" id="applyManualCssBtn">Apply</button></div>
+          <textarea id="manualCssEditor" class="code-box"></textarea>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>Preset Manager</h2>
+            <button class="small" id="savePresetBtn">Save preset</button>
+          </div>
+          <div class="field"><label>Preset Name</label><input type="text" id="presetName" placeholder="Midnight Sadness"></div>
+          <div class="preset-list" id="presetList"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-title"><h2>History Snapshots</h2></div>
+          <div class="history-list" id="historyList"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const i18n = {
+      ro: {
+        appSubtitle: 'Cum ar arăta un UI dacă starea lui ar fi o emoție?',
+        secAppearance: 'Aspect', secText: 'Text', secLayout: 'Layout', secBorders: 'Borders & Shadows',
+        previewHeading: 'Live Preview', previewSubheading: 'Drag & resize direct în preview. Responsive view inclus.',
+        footerNote: 'Exportă HTML, CSS, Tailwind-ish config, SCSS, PNG și share prin URL.',
+        secExport: 'Export & History', secExportSub: 'Cod sincronizat cu preview-ul.',
+        moods: { sad: 'Trist', energized: 'Energized', chaotic: 'Chaotic', calm: 'Calm', dreamy: 'Dreamy' },
+        title: 'Title', body: 'Body', styleMode: 'Style Mode', gradientType: 'Gradient Type'
+      },
+      en: {
+        appSubtitle: 'What would a UI look like if it had a mood?',
+        secAppearance: 'Appearance', secText: 'Text', secLayout: 'Layout', secBorders: 'Borders & Shadows',
+        previewHeading: 'Live Preview', previewSubheading: 'Drag & resize directly in preview. Responsive views included.',
+        footerNote: 'Export HTML, CSS, Tailwind-ish config, SCSS, PNG and share through URL.',
+        secExport: 'Export & History', secExportSub: 'Code synced with the preview.',
+        moods: { sad: 'Sad', energized: 'Energized', chaotic: 'Chaotic', calm: 'Calm', dreamy: 'Dreamy' },
+        title: 'Title', body: 'Body', styleMode: 'Style Mode', gradientType: 'Gradient Type'
+      }
+    };
+
+    const moodPresets = {
+      sad: {
+        styleMode: 'gradient', gradientType: 'linear', color1: '#1f2a44', color2: '#364968', color3: '#6b7ea5', color4: '#101828',
+        stop1: 0, stop2: 42, stop3: 76, stop4: 100, gradientAngle: 145, radialX: 50, radialY: 20,
+        opacity: 0.92, backdropBlur: 18, glassIntensity: 0.28, noiseOpacity: 0.08,
+        textColor: '#eef2ff', fontFamily: 'Playfair Display', fontSize: 25, fontWeight: 600, lineHeight: 1.35, letterSpacing: 0.2, textTransform: 'none', textAlign: 'left',
+        titleText: 'Tristețea poate fi elegantă.', bodyText: 'Un UI melancolic, calm și cinematografic, cu blur moale, contrast bun și ritm lent.',
+        boxWidth: 290, boxHeight: 320, padding: 22, rotate: -2, scale: 1, blur: 0,
+        radiusTL: 28, radiusTR: 28, radiusBR: 34, radiusBL: 18,
+        borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderLeftWidth: 1, borderStyle: 'solid', borderColor: '#a5b4fc',
+        innerShadow: 18, shadowX: 0, shadowY: 22, shadowBlur: 48, shadowSpread: -10, shadowOpacity: 0.28,
+        shadowLayers: '0 24px 60px rgba(4,10,24,.35), 0 2px 12px rgba(255,255,255,.06) inset',
+        textShadowX: 0, textShadowY: 1, textShadowBlur: 8, textShadowOpacity: 0.2,
+        animationPreset: 'fade', hoverEffect: 'lift', transitionProp: 'all', transitionDuration: 0.45, transitionEasing: 'ease-out', transitionDelay: 0,
+        template: 'card', layoutMode: 'stack', justifyContent: 'flex-start', alignItems: 'stretch'
+      },
+      energized: {
+        styleMode: 'gradient', gradientType: 'conic', color1: '#f59e0b', color2: '#ef4444', color3: '#f97316', color4: '#fde047',
+        stop1: 0, stop2: 28, stop3: 70, stop4: 100, gradientAngle: 210, radialX: 50, radialY: 50,
+        opacity: 1, backdropBlur: 8, glassIntensity: 0.12, noiseOpacity: 0.02,
+        textColor: '#1f1300', fontFamily: 'Bebas Neue', fontSize: 34, fontWeight: 700, lineHeight: 1, letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'left',
+        titleText: 'ENERGY SPIKES EVERYTHING.', bodyText: 'Bold contrast, kinetic gradients, sharper edges and punchy motion for momentum-first interfaces.',
+        boxWidth: 300, boxHeight: 310, padding: 24, rotate: -4, scale: 1.04, blur: 0,
+        radiusTL: 20, radiusTR: 34, radiusBR: 22, radiusBL: 40,
+        borderTopWidth: 2, borderRightWidth: 2, borderBottomWidth: 4, borderLeftWidth: 2, borderStyle: 'solid', borderColor: '#fff1a8',
+        innerShadow: 0, shadowX: 0, shadowY: 24, shadowBlur: 40, shadowSpread: -10, shadowOpacity: 0.3,
+        shadowLayers: '0 20px 48px rgba(239,68,68,.35), 0 0 24px rgba(245,158,11,.15)',
+        textShadowX: 0, textShadowY: 2, textShadowBlur: 16, textShadowOpacity: 0.1,
+        animationPreset: 'pulse', hoverEffect: 'grow', transitionProp: 'all', transitionDuration: 0.3, transitionEasing: 'ease', transitionDelay: 0,
+        template: 'hero', layoutMode: 'stack', justifyContent: 'flex-start', alignItems: 'stretch'
+      },
+      chaotic: {
+        styleMode: 'gradient', gradientType: 'radial', color1: '#7c3aed', color2: '#06b6d4', color3: '#ef4444', color4: '#0f172a',
+        stop1: 0, stop2: 22, stop3: 66, stop4: 100, gradientAngle: 180, radialX: 20, radialY: 24,
+        opacity: 0.96, backdropBlur: 12, glassIntensity: 0.16, noiseOpacity: 0.16,
+        textColor: '#ffffff', fontFamily: 'Space Grotesk', fontSize: 28, fontWeight: 700, lineHeight: 1.05, letterSpacing: -0.2, textTransform: 'none', textAlign: 'left',
+        titleText: 'Beautiful chaos, but intentional.', bodyText: 'Asymmetric corners, louder layers, sharper motion and mixed visual gravity points.',
+        boxWidth: 320, boxHeight: 360, padding: 20, rotate: -7, scale: 1.02, blur: 0.3,
+        radiusTL: 46, radiusTR: 12, radiusBR: 42, radiusBL: 16,
+        borderTopWidth: 3, borderRightWidth: 1, borderBottomWidth: 5, borderLeftWidth: 2, borderStyle: 'solid', borderColor: '#d8b4fe',
+        innerShadow: 26, shadowX: 12, shadowY: 22, shadowBlur: 40, shadowSpread: -12, shadowOpacity: 0.35,
+        shadowLayers: '14px 18px 42px rgba(0,0,0,.28), -8px -6px 18px rgba(255,255,255,.06), inset 0 0 26px rgba(255,255,255,.05)',
+        textShadowX: 0, textShadowY: 3, textShadowBlur: 18, textShadowOpacity: 0.18,
+        animationPreset: 'float', hoverEffect: 'tilt', transitionProp: 'all', transitionDuration: 0.42, transitionEasing: 'cubic-bezier(.2,.8,.2,1)', transitionDelay: 0,
+        template: 'card', layoutMode: 'grid', justifyContent: 'flex-start', alignItems: 'stretch'
+      },
+      calm: {
+        styleMode: 'solid', gradientType: 'linear', color1: '#d8f3dc', color2: '#d8f3dc', color3: '#95d5b2', color4: '#b7e4c7',
+        stop1: 0, stop2: 33, stop3: 66, stop4: 100, gradientAngle: 90, radialX: 50, radialY: 50,
+        opacity: 0.98, backdropBlur: 6, glassIntensity: 0.08, noiseOpacity: 0.01,
+        textColor: '#163028', fontFamily: 'Manrope', fontSize: 24, fontWeight: 600, lineHeight: 1.3, letterSpacing: 0, textTransform: 'none', textAlign: 'left',
+        titleText: 'Calm creates clarity.', bodyText: 'A soft, spacious system that reduces friction and supports focus without losing warmth.',
+        boxWidth: 290, boxHeight: 300, padding: 24, rotate: 0, scale: 1, blur: 0,
+        radiusTL: 26, radiusTR: 26, radiusBR: 26, radiusBL: 26,
+        borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderLeftWidth: 1, borderStyle: 'solid', borderColor: '#74c69d',
+        innerShadow: 8, shadowX: 0, shadowY: 16, shadowBlur: 32, shadowSpread: -12, shadowOpacity: 0.14,
+        shadowLayers: '0 16px 30px rgba(22,48,40,.14)',
+        textShadowX: 0, textShadowY: 0, textShadowBlur: 0, textShadowOpacity: 0,
+        animationPreset: 'none', hoverEffect: 'lift', transitionProp: 'all', transitionDuration: 0.35, transitionEasing: 'ease', transitionDelay: 0,
+        template: 'input', layoutMode: 'stack', justifyContent: 'flex-start', alignItems: 'stretch'
+      },
+      dreamy: {
+        styleMode: 'gradient', gradientType: 'radial', color1: '#f5d0fe', color2: '#c4b5fd', color3: '#93c5fd', color4: '#ffffff',
+        stop1: 0, stop2: 30, stop3: 72, stop4: 100, gradientAngle: 130, radialX: 60, radialY: 18,
+        opacity: 0.9, backdropBlur: 22, glassIntensity: 0.34, noiseOpacity: 0.05,
+        textColor: '#1d1b3a', fontFamily: 'Sora', fontSize: 26, fontWeight: 600, lineHeight: 1.2, letterSpacing: -0.1, textTransform: 'none', textAlign: 'left',
+        titleText: 'Soft futures feel lighter.', bodyText: 'Dreamy layers, bright fog, airy spacing and subtle motion for poetic interfaces.',
+        boxWidth: 300, boxHeight: 325, padding: 24, rotate: -1, scale: 1.01, blur: 0,
+        radiusTL: 34, radiusTR: 34, radiusBR: 48, radiusBL: 22,
+        borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderLeftWidth: 1, borderStyle: 'solid', borderColor: '#ddd6fe',
+        innerShadow: 16, shadowX: 0, shadowY: 20, shadowBlur: 44, shadowSpread: -10, shadowOpacity: 0.18,
+        shadowLayers: '0 18px 44px rgba(147,197,253,.22), inset 0 0 20px rgba(255,255,255,.2)',
+        textShadowX: 0, textShadowY: 2, textShadowBlur: 18, textShadowOpacity: 0.08,
+        animationPreset: 'float', hoverEffect: 'glow', transitionProp: 'all', transitionDuration: 0.5, transitionEasing: 'ease-in-out', transitionDelay: 0,
+        template: 'hero', layoutMode: 'stack', justifyContent: 'flex-start', alignItems: 'stretch'
+      }
+    };
+
+    const els = {};
+    const ids = [
+      'styleMode','gradientType','color1','color2','color3','color4','stop1','stop2','stop3','stop4','gradientAngle','opacity','radialX','radialY','backdropBlur','glassIntensity','noiseOpacity','bgImageUpload',
+      'titleText','bodyText','fontFamily','textAlign','fontSize','fontWeight','lineHeight','letterSpacing','textTransform','textColor','textShadowX','textShadowY','textShadowBlur','textShadowOpacity',
+      'boxWidth','boxHeight','padding','rotate','scale','blur','template','layoutMode','justifyContent','alignItems',
+      'radiusTL','radiusTR','radiusBR','radiusBL','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','borderStyle','borderColor','innerShadow','shadowX','shadowY','shadowBlur','shadowSpread','shadowOpacity','shadowLayers',
+      'animationPreset','hoverEffect','transitionProp','transitionDuration','transitionEasing','transitionDelay',
+      'previewUI','previewContent','previewTitle','previewBody','templateCard','templateInput','templateButton','deviceFrame','deviceNotch','deviceCanvas','captureArea','manualCssEditor','presetName','presetList','historyList','contrastBadge',
+      'langToggle','themeAppToggle','randomizeBtn','undoBtn','redoBtn','saveStateBtn','loadStateBtn','savePresetBtn','moodChips','copyCssBtn','copyHtmlBtn','copyFullHtmlBtn','downloadHtmlBtn','exportPngBtn','copyReactBtn','copyInlineStyleBtn','copyTailwindBtn','copyScssBtn','copyVarsBtn','applyManualCssBtn','resizeHandle','shareUrlBadge'
+    ];
+    ids.forEach(id => els[id] = document.getElementById(id));
+
+    let state = {
+      lang: 'ro',
+      appTheme: 'dark',
+      mood: 'sad',
+      bgImage: '',
+      manualCss: '',
+      previewX: 0,
+      previewY: 0,
+      ...structuredClone(moodPresets.sad)
+    };
+
+    let undoHistory = [];
+    let historyIndex = -1;
+    let applying = false;
+
+    function alpha(hex, a = 1) {
+      const h = hex.replace('#', '');
+      const num = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+
+    function loadGoogleFont(fontName) {
+      const formatted = fontName.replace(/ /g, '+');
+      const weights = '300;400;500;600;700;800';
+      document.getElementById('googleFontLink').href = `https://fonts.googleapis.com/css2?family=${formatted}:wght@${weights}&display=swap`;
+    }
+
+    function gradientCss(s) {
+      const stops = [`${s.color1} ${s.stop1}%`,`${s.color2} ${s.stop2}%`,`${s.color3} ${s.stop3}%`,`${s.color4} ${s.stop4}%`].join(', ');
+      if (s.styleMode === 'solid') return s.color1;
+      if (s.gradientType === 'linear') return `linear-gradient(${s.gradientAngle}deg, ${stops})`;
+      if (s.gradientType === 'radial') return `radial-gradient(circle at ${s.radialX}% ${s.radialY}%, ${stops})`;
+      return `conic-gradient(from ${s.gradientAngle}deg at 50% 50%, ${stops})`;
+    }
+
+    function textShadowCss(s) {
+      return `${s.textShadowX}px ${s.textShadowY}px ${s.textShadowBlur}px ${alpha('#000000', s.textShadowOpacity)}`;
+    }
+
+    function boxShadowCss(s) {
+      const base = `${s.shadowX}px ${s.shadowY}px ${s.shadowBlur}px ${s.shadowSpread}px ${alpha('#000000', s.shadowOpacity)}`;
+      const inset = s.innerShadow > 0 ? `inset 0 0 ${s.innerShadow}px ${alpha('#ffffff', 0.08)}` : '';
+      const extra = s.shadowLayers?.trim() ? s.shadowLayers.trim() : '';
+      return [base, inset, extra].filter(Boolean).join(', ');
+    }
+
+    function animationName(s) {
+      return s.animationPreset === 'none' ? 'none' : `mood-${s.animationPreset}`;
+    }
+
+    function hoverCss(effect) {
+      switch (effect) {
+        case 'lift': return 'translateY(-6px)';
+        case 'grow': return 'scale(1.04)';
+        case 'tilt': return 'rotate(-2deg) scale(1.02)';
+        case 'glow': return 'translateY(-2px) scale(1.01)';
+        default: return 'none';
+      }
+    }
+
+    function buildPreviewCss(s) {
+      return `
+#previewUI {
+  width: ${s.boxWidth}px;
+  min-height: ${s.boxHeight}px;
+  padding: ${s.padding}px;
+  background: ${gradientCss(s)};
+  color: ${s.textColor};
+  opacity: ${s.opacity};
+  border-top: ${s.borderTopWidth}px ${s.borderStyle} ${s.borderColor};
+  border-right: ${s.borderRightWidth}px ${s.borderStyle} ${s.borderColor};
+  border-bottom: ${s.borderBottomWidth}px ${s.borderStyle} ${s.borderColor};
+  border-left: ${s.borderLeftWidth}px ${s.borderStyle} ${s.borderColor};
+  border-radius: ${s.radiusTL}px ${s.radiusTR}px ${s.radiusBR}px ${s.radiusBL}px;
+  backdrop-filter: blur(${s.backdropBlur}px);
+  -webkit-backdrop-filter: blur(${s.backdropBlur}px);
+  box-shadow: ${boxShadowCss(s)};
+  transform: translate(${s.previewX}px, ${s.previewY}px) rotate(${s.rotate}deg) scale(${s.scale});
+  filter: blur(${s.blur}px);
+  font-family: '${s.fontFamily}', sans-serif;
+  text-align: ${s.textAlign};
+  text-transform: ${s.textTransform};
+  transition: ${s.transitionProp} ${s.transitionDuration}s ${s.transitionEasing} ${s.transitionDelay}s;
+  animation: ${animationName(s)} ${s.animationPreset === 'rotate' ? 8 : 3.2}s ${s.animationPreset === 'fade' ? 'ease-in-out' : 'ease-in-out'} infinite;
+  --noise-opacity: ${s.noiseOpacity};
+  background-image: ${s.bgImage ? `linear-gradient(rgba(255,255,255,${s.glassIntensity}), rgba(255,255,255,${Math.max(0, s.glassIntensity - 0.06)})), url(${JSON.stringify(s.bgImage).slice(1,-1)})` : gradientCss(s)};
+  background-size: cover;
+  background-position: center;
+}
+#previewUI:hover {
+  transform: translate(${s.previewX}px, ${s.previewY}px) ${hoverCss(s.hoverEffect) === 'none' ? `rotate(${s.rotate}deg) scale(${s.scale})` : `${hoverCss(s.hoverEffect)} rotate(${s.rotate}deg) scale(${s.scale})`};
+  box-shadow: ${s.hoverEffect === 'glow' ? boxShadowCss(s) + ', 0 0 34px ' + alpha(s.color2, .25) : boxShadowCss(s)};
+}
+#previewContent {
+  display: ${s.layoutMode === 'grid' ? 'grid' : 'flex'};
+  flex-direction: ${s.layoutMode === 'flex' ? 'row' : 'column'};
+  grid-template-columns: ${s.layoutMode === 'grid' ? '1fr 1fr' : 'none'};
+  justify-content: ${s.justifyContent};
+  align-items: ${s.alignItems};
+  gap: 12px;
+}
+#previewTitle, #previewBody, #templateCard, #templateInput, #templateButton {
+  color: inherit;
+  border-top-left-radius: ${Math.max(12, s.radiusTL - 8)}px;
+  border-top-right-radius: ${Math.max(12, s.radiusTR - 8)}px;
+  border-bottom-right-radius: ${Math.max(12, s.radiusBR - 8)}px;
+  border-bottom-left-radius: ${Math.max(12, s.radiusBL - 8)}px;
+  border-color: ${alpha(s.borderColor, .8)};
+  border-style: ${s.borderStyle};
+  border-width: max(1px, ${Math.max(1, Math.min(s.borderTopWidth, 3))}px);
+  font-family: '${s.fontFamily}', sans-serif;
+}
+#previewTitle {
+  font-size: ${s.fontSize}px;
+  font-weight: ${s.fontWeight};
+  line-height: ${s.lineHeight};
+  letter-spacing: ${s.letterSpacing}px;
+  text-transform: ${s.textTransform};
+  text-shadow: ${textShadowCss(s)};
+}
+#previewBody {
+  font-size: ${Math.max(12, s.fontSize * 0.45)}px;
+  line-height: ${Math.max(1.2, s.lineHeight)};
+  letter-spacing: ${Math.min(1.5, s.letterSpacing * .25)}px;
+  text-shadow: ${textShadowCss(s)};
+}
+#templateCard, #templateInput, #templateButton {
+  background: ${alpha('#ffffff', Math.min(.25, .07 + s.glassIntensity))};
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+}
+`;
+    }
+
+    function syncLabels() {
+      const t = i18n[state.lang];
+      document.getElementById('appSubtitle').textContent = t.appSubtitle;
+      document.getElementById('secAppearance').textContent = t.secAppearance;
+      document.getElementById('secText').textContent = t.secText;
+      document.getElementById('secLayout').textContent = t.secLayout;
+      document.getElementById('secBorders').textContent = t.secBorders;
+      document.getElementById('previewHeading').textContent = t.previewHeading;
+      document.getElementById('previewSubheading').textContent = t.previewSubheading;
+      document.getElementById('footerNote').textContent = t.footerNote;
+      document.getElementById('secExport').textContent = t.secExport;
+      document.getElementById('secExportSub').textContent = t.secExportSub;
+      document.getElementById('labelTitle').textContent = t.title;
+      document.getElementById('labelBody').textContent = t.body;
+      document.getElementById('labelStyleMode').textContent = t.styleMode;
+      document.getElementById('labelGradientType').textContent = t.gradientType;
+      document.getElementById('langBadge').textContent = state.lang.toUpperCase();
+      els.langToggle.textContent = state.lang === 'ro' ? 'EN' : 'RO';
+      renderMoodChips();
+    }
+
+    function renderMoodChips() {
+      const labels = i18n[state.lang].moods;
+      els.moodChips.innerHTML = '';
+      Object.keys(labels).forEach(key => {
+        const b = document.createElement('button');
+        b.className = 'chip' + (state.mood === key ? ' active' : '');
+        b.textContent = labels[key];
+        b.onclick = () => applyMood(key);
+        els.moodChips.appendChild(b);
+      });
+    }
+
+    function setDevice(device) {
+      const map = {
+        mobile: { w: '390px', h: '844px', notch: true },
+        tablet: { w: '820px', h: '1180px', notch: false },
+        desktop: { w: '100%', h: '780px', notch: false }
+      };
+      const conf = map[device];
+      document.documentElement.style.setProperty('--device-width', conf.w);
+      document.documentElement.style.setProperty('--device-height', conf.h);
+      els.deviceNotch.style.display = conf.notch ? 'block' : 'none';
+    }
+
+    function setTemplateVisibility(template) {
+      els.templateCard.style.display = ['card','hero'].includes(template) ? 'block' : 'none';
+      els.templateInput.style.display = ['input','hero'].includes(template) ? 'block' : 'none';
+      els.templateButton.style.display = ['button','hero','card'].includes(template) ? 'inline-flex' : 'none';
+    }
+
+    function renderContrast() {
+      const ratio = contrastRatio(state.textColor, pickBgForContrast());
+      els.contrastBadge.textContent = `Contrast: ${ratio.toFixed(2)}${ratio >= 4.5 ? ' ✓' : ' !'}`;
+    }
+
+    function hexToRgb(hex) {
+      const h = hex.replace('#', '');
+      const normalized = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+      const num = parseInt(normalized, 16);
+      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    function luminance(hex) {
+      const {r,g,b} = hexToRgb(hex);
+      const srgb = [r,g,b].map(v => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+    }
+
+    function contrastRatio(fg, bg) {
+      const L1 = luminance(fg);
+      const L2 = luminance(bg);
+      const light = Math.max(L1, L2);
+      const dark = Math.min(L1, L2);
+      return (light + 0.05) / (dark + 0.05);
+    }
+
+    function pickBgForContrast() {
+      return state.color1 || '#111111';
+    }
+
+    function updateManualEditor() {
+      els.manualCssEditor.value = buildPreviewCss(state);
+    }
+
+    function applyManualCss() {
+      let styleEl = document.getElementById('manualOverrideStyle');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'manualOverrideStyle';
+        document.head.appendChild(styleEl);
+      }
+      state.manualCss = els.manualCssEditor.value;
+      styleEl.textContent = state.manualCss;
+      persistUrl();
+    }
+
+    function applyStateToControls() {
+      applying = true;
+      Object.entries(state).forEach(([key, value]) => {
+        if (els[key] && 'value' in els[key] && !['previewUI','previewContent','previewTitle','previewBody'].includes(key)) {
+          els[key].value = value;
+        }
+      });
+      applying = false;
+      syncLabels();
+      renderPresetList();
+      renderHistory();
+      updateManualEditor();
+      render();
+    }
+
+    function render() {
+      loadGoogleFont(state.fontFamily);
+      setTemplateVisibility(state.template);
+      document.body.classList.toggle('light-app', state.appTheme === 'light');
+      els.themeAppToggle.textContent = state.appTheme === 'dark' ? '🌙 UI' : '☀️ UI';
+      els.previewTitle.textContent = state.titleText;
+      els.previewBody.textContent = state.bodyText;
+      const styleEl = document.getElementById('generatedPreviewStyle') || (() => {
+        const s = document.createElement('style');
+        s.id = 'generatedPreviewStyle';
+        document.head.appendChild(s);
+        return s;
+      })();
+      styleEl.textContent = `
+@keyframes mood-pulse {0%,100%{transform: translate(${state.previewX}px, ${state.previewY}px) rotate(${state.rotate}deg) scale(${state.scale})}50%{transform: translate(${state.previewX}px, ${state.previewY}px) rotate(${state.rotate}deg) scale(${state.scale * 1.04})}}
+@keyframes mood-float {0%,100%{transform: translate(${state.previewX}px, ${state.previewY}px) rotate(${state.rotate}deg) scale(${state.scale})}50%{transform: translate(${state.previewX}px, ${state.previewY - 10}px) rotate(${state.rotate - 1.5}deg) scale(${state.scale})}}
+@keyframes mood-rotate {0%{transform: translate(${state.previewX}px, ${state.previewY}px) rotate(${state.rotate}deg) scale(${state.scale})}50%{transform: translate(${state.previewX}px, ${state.previewY}px) rotate(${state.rotate + 6}deg) scale(${state.scale})}100%{transform: translate(${state.previewX}px, ${state.previewY}px) rotate(${state.rotate}deg) scale(${state.scale})}}
+@keyframes mood-fade {0%,100%{opacity:${Math.max(.55, state.opacity - 0.18)}}50%{opacity:${state.opacity}}}
+${buildPreviewCss(state)}`;
+      renderContrast();
+      document.getElementById('opacityValue').textContent = state.opacity;
+      document.getElementById('radialXValue').textContent = state.radialX + '%';
+      document.getElementById('radialYValue').textContent = state.radialY + '%';
+      persistUrl();
+    }
+
+    function readControls() {
+      if (applying) return;
+      const numericKeys = ['stop1','stop2','stop3','stop4','gradientAngle','opacity','radialX','radialY','backdropBlur','glassIntensity','noiseOpacity','fontSize','fontWeight','lineHeight','letterSpacing','textShadowX','textShadowY','textShadowBlur','textShadowOpacity','boxWidth','boxHeight','padding','rotate','scale','blur','radiusTL','radiusTR','radiusBR','radiusBL','borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth','innerShadow','shadowX','shadowY','shadowBlur','shadowSpread','shadowOpacity','transitionDuration','transitionDelay'];
+      const newState = { ...state };
+      Object.keys(els).forEach(id => {
+        if (!els[id] || !('value' in els[id])) return;
+        if (state[id] === undefined) return;
+        newState[id] = numericKeys.includes(id) ? Number(els[id].value) : els[id].value;
+      });
+      state = newState;
+      pushHistory();
+      render();
+    }
+
+    function pushHistory() {
+      const snapshot = JSON.stringify(state);
+      if (undoHistory[historyIndex] === snapshot) return;
+      undoHistory = undoHistory.slice(0, historyIndex + 1);
+      undoHistory.push(snapshot);
+      if (undoHistory.length > 80) undoHistory.shift();
+      historyIndex = undoHistory.length - 1;
+      renderHistory();
+    }
+
+    function restoreHistory(index) {
+      if (index < 0 || index >= undoHistory.length) return;
+      historyIndex = index;
+      state = JSON.parse(undoHistory[index]);
+      applyStateToControls();
+    }
+
+    function renderHistory() {
+      els.historyList.innerHTML = '';
+      [...undoHistory].reverse().forEach((item, reverseIndex) => {
+        const idx = undoHistory.length - 1 - reverseIndex;
+        const snap = JSON.parse(item);
+        const row = document.createElement('div');
+        row.className = 'history-item';
+        row.innerHTML = `<div class="stack"><strong>${snap.mood}</strong><span class="tiny">${snap.styleMode} / ${snap.gradientType} / ${snap.fontFamily}</span></div>
+        <div class="swatches"><span class="swatch" style="background:${snap.color1}"></span><span class="swatch" style="background:${snap.color2}"></span><span class="swatch" style="background:${snap.color3}"></span></div>`;
+        row.onclick = () => restoreHistory(idx);
+        row.style.outline = idx === historyIndex ? '1px solid rgba(139,92,246,.6)' : 'none';
+        els.historyList.appendChild(row);
+      });
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('mood-ui-generator-state', JSON.stringify(state));
+        localStorage.setItem('mood-ui-generator-history', JSON.stringify(undoHistory));
+        localStorage.setItem('mood-ui-generator-history-index', String(historyIndex));
+        flash('Saved to localStorage');
+      } catch {
+        flash('Save failed');
+      }
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem('mood-ui-generator-state');
+        if (!saved) return flash('No saved state');
+        state = JSON.parse(saved);
+        undoHistory = JSON.parse(localStorage.getItem('mood-ui-generator-history') || '[]');
+        historyIndex = Number(localStorage.getItem('mood-ui-generator-history-index') || undoHistory.length - 1);
+        applyStateToControls();
+        flash('Loaded');
+      } catch {
+        flash('Load failed');
+      }
+    }
+
+    function applyMood(mood) {
+      state = { ...state, mood, ...structuredClone(moodPresets[mood]) };
+      pushHistory();
+      applyStateToControls();
+    }
+
+    function randomHex() {
+      return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+    }
+
+    function randomize() {
+      const moodNames = Object.keys(moodPresets);
+      const mood = moodNames[Math.floor(Math.random() * moodNames.length)];
+      state = {
+        ...state,
+        mood,
+        ...structuredClone(moodPresets[mood]),
+        color1: randomHex(), color2: randomHex(), color3: randomHex(), color4: randomHex(),
+        gradientAngle: Math.floor(Math.random() * 361),
+        radialX: Math.floor(Math.random() * 100),
+        radialY: Math.floor(Math.random() * 100),
+        rotate: Math.floor(Math.random() * 16) - 8,
+        scale: +(0.9 + Math.random() * 0.3).toFixed(2)
+      };
+      pushHistory();
+      applyStateToControls();
+    }
+
+    function getGeneratedCss() {
+      return buildPreviewCss(state);
+    }
+
+    function getPreviewHtmlOnly() {
+      return `<div id="previewUI"><div id="previewContent"><h3 id="previewTitle">${escapeHtml(state.titleText)}</h3><p id="previewBody">${escapeHtml(state.bodyText)}</p>${state.template !== 'button' ? `<div id="templateCard">Adaptive card</div>` : ''}${state.template !== 'card' ? `<input id="templateInput" placeholder="Preview input" />` : ''}<button id="templateButton">Generate mood</button></div></div>`;
+    }
+
+    function getFullHtml() {
+      const css = getGeneratedCss() + `
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1020;font-family:'${state.fontFamily}',sans-serif;padding:24px}
+#previewUI.noise-overlay::after{content:'';position:absolute;inset:0;pointer-events:none;opacity:${state.noiseOpacity};background-image:radial-gradient(rgba(255,255,255,.12) .8px, transparent 1px);background-size:6px 6px;mix-blend-mode:overlay}
+#previewUI{position:relative;overflow:hidden}
+#previewContent{position:relative;z-index:1}
+#templateCard,#templateInput,#templateButton{padding:12px 14px;border-radius:16px}
+#templateInput{width:100%;background:rgba(255,255,255,.08);color:inherit}
+#templateButton{background:rgba(255,255,255,.12);color:inherit;font-weight:700}
+${state.manualCss || ''}`;
+      return `<!DOCTYPE html>
+<html lang="${state.lang}">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${escapeHtml(state.titleText)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=${state.fontFamily.replace(/ /g,'+')}:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>${css}</style>
+</head>
+<body>
+${getPreviewHtmlOnly()}
+</body>
+</html>`;
+    }
+
+    function getCssVars() {
+      return `:root {
+  --mood-bg: ${gradientCss(state)};
+  --mood-text: ${state.textColor};
+  --mood-radius: ${state.radiusTL}px ${state.radiusTR}px ${state.radiusBR}px ${state.radiusBL}px;
+  --mood-border-color: ${state.borderColor};
+  --mood-shadow: ${boxShadowCss(state)};
+  --mood-font: '${state.fontFamily}', sans-serif;
+}`;
+    }
+
+    function getScss() {
+      return `$mood-bg: ${gradientCss(state)};
+$mood-text: ${state.textColor};
+$mood-border: ${state.borderTopWidth}px ${state.borderStyle} ${state.borderColor};
+$mood-shadow: ${boxShadowCss(state)};
+
+.mood-card {
+  background: $mood-bg;
+  color: $mood-text;
+  border: $mood-border;
+  border-radius: ${state.radiusTL}px ${state.radiusTR}px ${state.radiusBR}px ${state.radiusBL}px;
+  box-shadow: $mood-shadow;
+  padding: ${state.padding}px;
+}`;
+    }
+
+    function getReactComponent() {
+      return `export default function MoodCard(){
+  const style = ${JSON.stringify(getInlineStyleObject(), null, 2)};
+  return (
+    <div style={style}>
+      <h3>${escapeJsx(state.titleText)}</h3>
+      <p>${escapeJsx(state.bodyText)}</p>
+      <button>Generate mood</button>
+    </div>
+  );
+}`;
+    }
+
+    function getInlineStyleObject() {
+      return {
+        width: `${state.boxWidth}px`,
+        minHeight: `${state.boxHeight}px`,
+        padding: `${state.padding}px`,
+        background: gradientCss(state),
+        color: state.textColor,
+        borderTop: `${state.borderTopWidth}px ${state.borderStyle} ${state.borderColor}`,
+        borderRight: `${state.borderRightWidth}px ${state.borderStyle} ${state.borderColor}`,
+        borderBottom: `${state.borderBottomWidth}px ${state.borderStyle} ${state.borderColor}`,
+        borderLeft: `${state.borderLeftWidth}px ${state.borderStyle} ${state.borderColor}`,
+        borderRadius: `${state.radiusTL}px ${state.radiusTR}px ${state.radiusBR}px ${state.radiusBL}px`,
+        boxShadow: boxShadowCss(state),
+        backdropFilter: `blur(${state.backdropBlur}px)`,
+        WebkitBackdropFilter: `blur(${state.backdropBlur}px)`,
+        fontFamily: `'${state.fontFamily}', sans-serif`,
+        textAlign: state.textAlign,
+        textTransform: state.textTransform,
+        opacity: state.opacity,
+        transform: `rotate(${state.rotate}deg) scale(${state.scale})`,
+        filter: `blur(${state.blur}px)`
+      };
+    }
+
+    function getTailwindish() {
+      return `/* Approx Tailwind mapping */
+<div class="rounded-[${state.radiusTL}px] border shadow-xl p-[${state.padding}px] backdrop-blur-[${state.backdropBlur}px]" style={{ background: '${gradientCss(state)}', color: '${state.textColor}' }} />`;
+    }
+
+    async function copy(text) {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+        flash('Copied');
+      } catch {
+        flash('Copy failed');
+      }
+    }
+
+    function downloadHtml() {
+      const blob = new Blob([getFullHtml()], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mood-ui-generator-export.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function exportPNG() {
+      try {
+        if (typeof html2canvas !== 'function') {
+          flash('PNG export unavailable');
+          return;
+        }
+        const canvas = await html2canvas(els.captureArea, { backgroundColor: null, scale: 2, useCORS: true });
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'mood-ui-preview.png';
+        a.click();
+      } catch {
+        flash('PNG export failed');
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function escapeJsx(str) {
+      return String(str).replace(/[{}]/g, '');
+    }
+
+    function flash(text) {
+      els.shareUrlBadge.textContent = text;
+      clearTimeout(flash.t);
+      flash.t = setTimeout(() => els.shareUrlBadge.textContent = 'URL sync on', 1500);
+    }
+
+    function encodeStatePayload(obj) {
+      try {
+        return btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(obj))));
+      } catch {
+        return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+      }
+    }
+
+    function decodeStatePayload(payload) {
+      try {
+        return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(payload), c => c.charCodeAt(0))));
+      } catch {
+        return JSON.parse(decodeURIComponent(escape(atob(payload))));
+      }
+    }
+
+    function persistUrl() {
+      try {
+        const payload = encodeStatePayload(state);
+        const url = new URL(location.href);
+        url.searchParams.set('config', payload);
+        if (window.history && typeof window.history.replaceState === 'function') {
+          window.history.replaceState(null, '', url.toString());
+        }
+      } catch {
+        flash('URL sync failed');
+      }
+    }
+
+    function readUrlState() {
+      const url = new URL(location.href);
+      const raw = url.searchParams.get('config');
+      if (!raw) return false;
+      try {
+        state = decodeStatePayload(raw);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function getUserPresets() {
+      return JSON.parse(localStorage.getItem('mood-ui-generator-presets') || '[]');
+    }
+
+    function setUserPresets(list) {
+      localStorage.setItem('mood-ui-generator-presets', JSON.stringify(list));
+    }
+
+    function renderPresetList() {
+      const presets = getUserPresets();
+      els.presetList.innerHTML = '';
+      if (!presets.length) {
+        const empty = document.createElement('div');
+        empty.className = 'tiny';
+        empty.textContent = 'No saved presets yet.';
+        els.presetList.appendChild(empty);
+        return;
+      }
+      presets.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'preset-item';
+        row.innerHTML = `<div class="stack"><strong>${escapeHtml(item.name)}</strong><span class="tiny">${item.data.mood} · ${item.data.fontFamily}</span></div>
+          <div class="btn-row"><button class="small">Load</button><button class="small danger">Delete</button></div>`;
+        row.querySelectorAll('button')[0].onclick = () => { state = item.data; pushHistory(); applyStateToControls(); };
+        row.querySelectorAll('button')[1].onclick = () => {
+          const next = getUserPresets().filter((_, i) => i !== idx);
+          setUserPresets(next); renderPresetList();
+        };
+        els.presetList.appendChild(row);
+      });
+    }
+
+    function savePreset() {
+      const name = els.presetName.value.trim() || `${state.mood}-${Date.now()}`;
+      const presets = getUserPresets();
+      presets.unshift({ name, data: structuredClone(state) });
+      setUserPresets(presets.slice(0, 24));
+      renderPresetList();
+      flash('Preset saved');
+    }
+
+    function bindInputs() {
+      Object.keys(els).forEach(id => {
+        const el = els[id];
+        if (!el || !('value' in el)) return;
+        if (id === 'manualCssEditor') return;
+        el.addEventListener('input', readControls);
+        el.addEventListener('change', readControls);
+      });
+
+      document.querySelectorAll('input[name="device"]').forEach(radio => {
+        radio.addEventListener('change', e => setDevice(e.target.value));
+      });
+
+      els.langToggle.onclick = () => {
+        state.lang = state.lang === 'ro' ? 'en' : 'ro';
+        syncLabels();
+        pushHistory();
+        render();
+      };
+      els.themeAppToggle.onclick = () => { state.appTheme = state.appTheme === 'dark' ? 'light' : 'dark'; pushHistory(); render(); };
+      els.randomizeBtn.onclick = randomize;
+      els.undoBtn.onclick = () => restoreHistory(Math.max(0, historyIndex - 1));
+      els.redoBtn.onclick = () => restoreHistory(Math.min(undoHistory.length - 1, historyIndex + 1));
+      els.saveStateBtn.onclick = saveState;
+      els.loadStateBtn.onclick = loadState;
+      els.savePresetBtn.onclick = savePreset;
+      els.copyCssBtn.onclick = () => copy(getGeneratedCss());
+      els.copyHtmlBtn.onclick = () => copy(getPreviewHtmlOnly());
+      els.copyFullHtmlBtn.onclick = () => copy(getFullHtml());
+      els.downloadHtmlBtn.onclick = downloadHtml;
+      els.exportPngBtn.onclick = exportPNG;
+      els.copyReactBtn.onclick = () => copy(getReactComponent());
+      els.copyInlineStyleBtn.onclick = () => copy(JSON.stringify(getInlineStyleObject(), null, 2));
+      els.copyTailwindBtn.onclick = () => copy(getTailwindish());
+      els.copyScssBtn.onclick = () => copy(getScss());
+      els.copyVarsBtn.onclick = () => copy(getCssVars());
+      els.applyManualCssBtn.onclick = applyManualCss;
+      els.bgImageUpload.addEventListener('change', e => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => { state.bgImage = reader.result; pushHistory(); render(); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function enableDragResize() {
+      const target = els.previewUI;
+      let mode = null;
+      let sx = 0, sy = 0, startX = 0, startY = 0, startW = 0, startH = 0;
+
+      target.addEventListener('pointerdown', e => {
+        if (e.target === els.resizeHandle) return;
+        mode = 'drag';
+        sx = e.clientX; sy = e.clientY; startX = state.previewX; startY = state.previewY;
+        target.classList.add('dragging');
+        target.setPointerCapture(e.pointerId);
+      });
+      els.resizeHandle.addEventListener('pointerdown', e => {
+        mode = 'resize';
+        sx = e.clientX; sy = e.clientY; startW = state.boxWidth; startH = state.boxHeight;
+        e.stopPropagation();
+        target.setPointerCapture(e.pointerId);
+      });
+      target.addEventListener('pointermove', e => {
+        if (!mode) return;
+        if (mode === 'drag') {
+          state.previewX = startX + (e.clientX - sx);
+          state.previewY = startY + (e.clientY - sy);
+        } else {
+          state.boxWidth = Math.max(140, Math.round(startW + (e.clientX - sx)));
+          state.boxHeight = Math.max(120, Math.round(startH + (e.clientY - sy)));
+        }
+        applyStateToControls();
+      });
+      ['pointerup','pointercancel'].forEach(evt => target.addEventListener(evt, () => {
+        if (mode) pushHistory();
+        mode = null;
+        target.classList.remove('dragging');
+      }));
+    }
+
+    function init() {
+      bindInputs();
+      enableDragResize();
+      const restored = readUrlState();
+      if (!restored) {
+        const saved = localStorage.getItem('mood-ui-generator-state');
+        if (saved) state = JSON.parse(saved);
+      }
+      undoHistory = [JSON.stringify(state)];
+      historyIndex = 0;
+      applyStateToControls();
+      setDevice('mobile');
+      if (state.manualCss) applyManualCss();
+    }
+
+    init();
+  </script>
+</body>
+</html>
